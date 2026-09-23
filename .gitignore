@@ -1,0 +1,25 @@
+# Virtual muhit (Virtual environment)
+.venv/
+venv/
+ENV/
+env/
+
+# Python kesh fayllari
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Log fayllari va papkalari
+*.log
+logs/*.log
+log/
+
+# Jupyter Notebook keshlar
+.ipynb_checkpoints/
+
+# Loyha sozlamalari (Ixtiyoriy - IDE sozlamalari)
+.vscode/
+.idea/
+
+temp/*
+!temp/.gitkeep

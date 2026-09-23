@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediaLoader Pro — Universal Yuklovchi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c14;
+    --surface: #0d1420;
+    --surface2: #121929;
+    --border: #1e2d45;
+    --accent: #00e5ff;
+    --accent2: #7c4dff;
+    --accent3: #ff6b35;
+    --success: #00e676;
+    --danger: #ff4444;
+    --warning: #ffb300;
+    --text: #e8f4f8;
+    --muted: #4a6580;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  html { scroll-behavior: smooth; }
+  
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Grid Background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Glow orbs ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 600px; height: 600px; background: rgba(0,229,255,0.06); top: -200px; right: -100px; }
+  .orb-2 { width: 500px; height: 500px; background: rgba(124,77,255,0.07); bottom: -100px; left: -100px; }
+  .orb-3 { width: 300px; height: 300px; background: rgba(255,107,53,0.05); top: 40%; left: 40%; }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 48px 0 24px;
+    text-align: center;
+  }
+
+  .logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.2);
+    padding: 6px 16px;
+    border-radius: 100px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .logo-badge span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+
+  h1 {
+    font-size: clamp(36px, 6vw, 64px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -2px;
+    margin-bottom: 16px;
+  }
+
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 500px;
+    margin: 0 auto 48px;
+    line-height: 1.7;
+    font-weight: 400;
+  }
+
+  /* ── Platform Tags ── */
+  .platforms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 48px;
+  }
+
+  .platform-tag {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+  }
+
+  .platform-tag:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,255,0.05);
+  }
+
+  /* ── Main Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+    opacity: 0.4;
+  }
+
+  /* ── URL Input ── */
+  .url-section { margin-bottom: 24px; }
+
+  .input-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .url-wrap {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .url-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .url-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,229,255,0.1);
+  }
+
+  .url-input::placeholder { color: var(--muted); }
+
+  .btn-analyze {
+    background: rgba(0,229,255,0.1);
+    border: 1px solid rgba(0,229,255,0.3);
+    color: var(--accent);
+    padding: 14px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-analyze:hover {
+    background: rgba(0,229,255,0.2);
+    border-color: var(--accent);
+  }
+
+  /* ── Options Row ── */
+  .options-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .select-wrap { position: relative; }
+
+  .select-wrap select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 40px 12px 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: border-color 0.2s;
+  }
+
+  .select-wrap select:focus { border-color: var(--accent); }
+
+  .select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  /* ── Info Preview (after analyze) ── */
+  #preview-panel {
+    display: none;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+    animation: fadeSlide 0.3s ease;
+  }
+
+  .preview-inner {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .preview-thumb {
+    width: 100px;
+    height: 68px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .preview-info { flex: 1; min-width: 0; }
+  .preview-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .preview-meta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .preview-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(0,229,255,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(0,229,255,0.2);
+  }
+
+  /* ── Download Button ── */
+  .btn-download {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    color: #000;
+    padding: 16px 24px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-download:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 32px rgba(0,229,255,0.3);
+  }
+
+  .btn-download:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-download .btn-spinner {
+    display: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+  }
+
+  /* ── Progress ── */
+  #progress-panel {
+    display: none;
+    margin-top: 20px;
+    animation: fadeSlide 0.3s ease;
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .progress-status {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  .progress-pct {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .progress-bar-bg {
+    background: var(--surface2);
+    border-radius: 100px;
+    height: 6px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 100px;
+    transition: width 0.4s ease;
+    width: 0%;
+    position: relative;
+  }
+
+  .progress-bar-fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 40px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+    animation: shimmer 1s infinite;
+  }
+
+  .progress-msg {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  /* ── Engine Badges ── */
+  .engine-trail {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .engine-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 6px;
+  }
+
+  .engine-badge.success { background: rgba(0,230,118,0.1); color: var(--success); border: 1px solid rgba(0,230,118,0.2); }
+  .engine-badge.failed  { background: rgba(255,68,68,0.1);  color: var(--danger);  border: 1px solid rgba(255,68,68,0.2); }
+  .engine-badge.trying  { background: rgba(0,229,255,0.1);  color: var(--accent);  border: 1px solid rgba(0,229,255,0.2); }
+
+  /* ── Result Panel ── */
+  #result-panel {
+    display: none;
+    margin-top: 20px;
+    animation: fadeSlide 0.3s ease;
+  }
+
+  .result-card {
+    background: rgba(0,230,118,0.05);
+    border: 1px solid rgba(0,230,118,0.2);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .result-icon { font-size: 24px; }
+  .result-title { font-size: 14px; font-weight: 600; }
+  .result-sub { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+  .result-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .meta-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .btn-dl-file {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    background: var(--success);
+    color: #000;
+    padding: 14px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-dl-file:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,230,118,0.3); }
+
+  /* ── Error Panel ── */
+  #error-panel {
+    display: none;
+    margin-top: 20px;
+    animation: fadeSlide 0.3s ease;
+  }
+
+  .error-card {
+    background: rgba(255,68,68,0.05);
+    border: 1px solid rgba(255,68,68,0.2);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .error-title { color: var(--danger); font-weight: 700; margin-bottom: 8px; }
+  .error-msg { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 16px; word-break: break-all; }
+  
+  .engines-tried { margin-top: 12px; }
+  .engines-tried-title { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 8px; }
+
+  /* ── Stats Row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .stat-val {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: var(--mono);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 40px 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: var(--mono);
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  /* ── Animations ── */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scanline {
+    from { transform: translateY(0); }
+    to { transform: translateY(6px); }
+  }
+
+  /* ── Tooltip ── */
+  .tooltip-wrap { position: relative; }
+  .tooltip-wrap:hover .tooltip { display: block; }
+  .tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    white-space: nowrap;
+    color: var(--text);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* ── Subtitles toggle ── */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .toggle {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .toggle input { display: none; }
+
+  .toggle-thumb {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: var(--muted);
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: all 0.2s;
+  }
+
+  .toggle input:checked ~ .toggle-thumb {
+    left: 18px;
+    background: var(--accent);
+  }
+
+  .toggle input:checked ~ .toggle-bg {
+    background: rgba(0,229,255,0.2);
+  }
+
+  .toggle-label { font-size: 13px; color: var(--muted); }
+
+  /* ── Mobile ── */
+  @media (max-width: 600px) {
+    .options-row { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .url-wrap { flex-direction: column; }
+    .btn-analyze { width: 100%; }
+    .stat-val { font-size: 22px; }
+    .card { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="wrapper">
+  <header>
+    <div class="logo-badge">
+      <span></span>
+      MediaLoader Pro v2.0
+    </div>
+    <h1>Universal <em>Media</em><br>Yuklovchi</h1>
+    <p class="subtitle">YouTube, Instagram, TikTok, Twitter/X, Facebook va 1000+ saytdan video, audio, foto, reels, stories yuklab oling</p>
+
+    <div class="platforms">
+      <span class="platform-tag">▶ YouTube</span>
+      <span class="platform-tag">📸 Instagram</span>
+      <span class="platform-tag">🎵 TikTok</span>
+      <span class="platform-tag">🐦 Twitter/X</span>
+      <span class="platform-tag">📘 Facebook</span>
+      <span class="platform-tag">🎮 Twitch</span>
+      <span class="platform-tag">☁ SoundCloud</span>
+      <span class="platform-tag">🎬 Vimeo</span>
+      <span class="platform-tag">📌 Pinterest</span>
+      <span class="platform-tag">💬 Reddit</span>
+      <span class="platform-tag">📺 Dailymotion</span>
+      <span class="platform-tag">+1000 sayt</span>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-val">1000+</div>
+      <div class="stat-label">Sayt qo'llab-quvvatlanadi</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">3</div>
+      <div class="stat-label">Yuklovchi dvigateli</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">4K</div>
+      <div class="stat-label">Maksimal sifat</div>
+    </div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="card">
+    <div class="url-section">
+      <label class="input-label">🔗 Media havolasi</label>
+      <div class="url-wrap">
+        <input 
+          type="text" 
+          id="urlInput" 
+          class="url-input" 
+          placeholder="https://youtube.com/watch?v=... yoki boshqa havola"
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <button class="btn-analyze" id="analyzeBtn" onclick="analyzeUrl()">
+          🔍 TAHLIL
+        </button>
+      </div>
+    </div>
+
+    <!-- Preview Panel -->
+    <div id="preview-panel">
+      <div class="preview-inner">
+        <img id="previewThumb" class="preview-thumb" src="" alt="">
+        <div class="preview-info">
+          <div class="preview-title" id="previewTitle"></div>
+          <div class="preview-meta" id="previewMeta"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="options-row">
+      <div class="select-wrap">
+        <label class="input-label" style="margin-bottom:8px">📊 Sifat</label>
+        <select id="qualitySelect">
+          <option value="best">⭐ Eng yaxshi sifat</option>
+          <option value="2160p">🔥 4K (2160p)</option>
+          <option value="1080p">💎 Full HD (1080p)</option>
+          <option value="720p">✅ HD (720p)</option>
+          <option value="480p">📱 SD (480p)</option>
+          <option value="360p">💾 Low (360p)</option>
+          <option value="audio_only">🎵 Faqat audio (MP3)</option>
+        </select>
+      </div>
+      <div class="select-wrap">
+        <label class="input-label" style="margin-bottom:8px">📁 Format</label>
+        <select id="formatSelect">
+          <option value="auto">🤖 Avtomatik</option>
+          <option value="mp4">🎬 MP4 (video)</option>
+          <option value="mp3">🎵 MP3 (audio)</option>
+          <option value="webm">🌐 WebM</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Subtitle Toggle -->
+    <div class="toggle-row">
+      <label class="toggle">
+        <input type="checkbox" id="subtitlesToggle">
+        <div class="toggle-thumb"></div>
+      </label>
+      <span class="toggle-label">Subtitrlarni ham yuklab olish (agar mavjud bo'lsa)</span>
+    </div>
+
+    <!-- Download Button -->
+    <button class="btn-download" id="downloadBtn" onclick="startDownload()">
+      <span style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <span class="btn-spinner" id="btnSpinner"></span>
+        <span id="btnText">⬇ YUKLAB OLISH</span>
+      </span>
+    </button>
+
+    <!-- Progress Panel -->
+    <div id="progress-panel">
+      <div class="progress-header">
+        <span class="progress-status" id="progressStatus">Yuklanmoqda...</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-msg" id="progressMsg">Iltimos kuting...</div>
+      <div class="engine-trail" id="engineTrail"></div>
+    </div>
+
+    <!-- Result Panel -->
+    <div id="result-panel">
+      <div class="result-card">
+        <div class="result-header">
+          <span class="result-icon">✅</span>
+          <div>
+            <div class="result-title" id="resultTitle">Muvaffaqiyatli yuklandi!</div>
+            <div class="result-sub" id="resultSub"></div>
+          </div>
+        </div>
+        <div class="result-meta" id="resultMeta"></div>
+        <a href="#" id="downloadLink" class="btn-dl-file" download>
+          ⬇ Faylni saqlash
+        </a>
+      </div>
+    </div>
+
+    <!-- Error Panel -->
+    <div id="error-panel">
+      <div class="error-card">
+        <div class="error-title">❌ Yuklab bo'lmadi</div>
+        <div class="error-msg" id="errorMsg"></div>
+        <div class="engines-tried" id="enginesTried">
+          <div class="engines-tried-title">SINAB KO'RILGAN YUKLOVCHILAR:</div>
+          <div class="engine-trail" id="failedEngines"></div>
+        </div>
+        <button class="btn-dl-file" style="background:var(--danger);margin-top:12px" onclick="resetAll()">
+          🔄 Qayta urinish
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Section -->
+  <div class="card">
+    <h2 style="font-size:18px;font-weight:700;margin-bottom:20px">🛡️ Xavfsizlik & Imkoniyatlar</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <div style="color:var(--accent);font-size:13px;font-weight:600;margin-bottom:10px">⚙️ Yuklovchi dvigatellari</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.8">
+          1. <strong style="color:var(--text)">yt-dlp</strong> — asosiy (1000+ sayt)<br>
+          2. <strong style="color:var(--text)">gallery-dl</strong> — rasmlar uchun<br>
+          3. <strong style="color:var(--text)">Direct HTTP</strong> — to'g'ridan-to'g'ri
+        </div>
+      </div>
+      <div>
+        <div style="color:var(--accent2);font-size:13px;font-weight:600;margin-bottom:10px">🔒 Xavfsizlik</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.8">
+          ✓ Rate limiting<br>
+          ✓ URL filterlash<br>
+          ✓ Path traversal himoya<br>
+          ✓ Fayl hajm chekovi
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    MediaLoader Pro — yt-dlp + gallery-dl + Direct HTTP &nbsp;|&nbsp; FastAPI Backend<br>
+    <span style="color:var(--accent)">API Docs:</span> <a href="/api/docs" style="color:var(--accent2)">/api/docs</a> &nbsp;·&nbsp; Health: <a href="/api/health" style="color:var(--accent2)">/api/health</a>
+  </footer>
+</div>
+
+<script>
+let currentTaskId = null;
+let pollInterval = null;
+
+// ── Utility ──────────────────────────────────────────────────────────────────
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function formatDuration(sec) {
+  if (!sec) return '';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+// ── Platform icons ────────────────────────────────────────────────────────────
+const platformIcons = {
+  youtube:'▶️', instagram:'📸', tiktok:'🎵', twitter:'🐦', facebook:'📘',
+  reddit:'🤖', soundcloud:'☁️', vimeo:'🎬', dailymotion:'📺', pinterest:'📌',
+  twitch:'🎮', telegram:'✈️', linkedin:'💼', bilibili:'📹', generic:'🌐'
+};
+
+const mediaTypeLabels = {
+  video: '🎬 Video', audio: '🎵 Audio', image: '🖼️ Rasm',
+  reel: '🎭 Reel', story: '📖 Story', short: '⚡ Short',
+  clip: '✂️ Clip', playlist: '📋 Playlist', image_or_video: '📦 Media'
+};
+
+// ── Analyze URL ───────────────────────────────────────────────────────────────
+async function analyzeUrl() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+
+  const btn = document.getElementById('analyzeBtn');
+  btn.textContent = '⏳ ...';
+  btn.disabled = true;
+
+  hideAll();
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ url, quality: 'best', format: 'auto' })
+    });
+
+    const data = await res.json();
+    showPreview(data);
+    updateQualityOptions(data.formats || []);
+
+  } catch (e) {
+    // Silently fail - user can still download
+  }
+
+  btn.textContent = '🔍 TAHLIL';
+  btn.disabled = false;
+}
+
+function showPreview(data) {
+  const panel = document.getElementById('preview-panel');
+  
+  if (data.thumbnail) {
+    document.getElementById('previewThumb').src = data.thumbnail;
+    document.getElementById('previewThumb').style.display = 'block';
+  } else {
+    document.getElementById('previewThumb').style.display = 'none';
+  }
+
+  document.getElementById('previewTitle').textContent = data.title || 'Noma\'lum sarlavha';
+
+  const meta = document.getElementById('previewMeta');
+  meta.innerHTML = '';
+  
+  if (data.platform) {
+    const icon = platformIcons[data.platform] || '🌐';
+    meta.innerHTML += `<span class="preview-badge">${icon} ${data.platform.toUpperCase()}</span>`;
+  }
+  if (data.media_type) {
+    meta.innerHTML += `<span class="preview-badge">${mediaTypeLabels[data.media_type] || data.media_type}</span>`;
+  }
+  if (data.duration) {
+    meta.innerHTML += `<span class="preview-badge">⏱ ${formatDuration(data.duration)}</span>`;
+  }
+  if (data.uploader) {
+    meta.innerHTML += `<span class="preview-badge">👤 ${data.uploader}</span>`;
+  }
+  if (data.warning) {
+    meta.innerHTML += `<span class="preview-badge" style="color:var(--warning);border-color:rgba(255,179,0,0.3)">⚠️ ${data.warning}</span>`;
+  }
+
+  panel.style.display = 'block';
+}
+
+function updateQualityOptions(formats) {
+  if (!formats || formats.length === 0) return;
+  
+  const sel = document.getElementById('qualitySelect');
+  
+  // Add available formats dynamically
+  formats.forEach(f => {
+    const exists = Array.from(sel.options).some(o => o.value === f.quality);
+    if (!exists) {
+      const opt = document.createElement('option');
+      opt.value = f.quality;
+      const size = f.filesize ? ` (${formatBytes(f.filesize)})` : '';
+      opt.textContent = `${f.quality}${size}`;
+      // Insert before audio_only
+      const audioOpt = Array.from(sel.options).find(o => o.value === 'audio_only');
+      if (audioOpt) sel.insertBefore(opt, audioOpt);
+      else sel.appendChild(opt);
+    }
+  });
+}
+
+// ── Start Download ────────────────────────────────────────────────────────────
+async function startDownload() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) {
+    alert('Iltimos URL kiriting!');
+    return;
+  }
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    alert('URL http:// yoki https:// bilan boshlanishi kerak');
+    return;
+  }
+
+  hideAll();
+  setLoading(true);
+  showProgress();
+
+  try {
+    const res = await fetch('/api/download', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        url,
+        quality: document.getElementById('qualitySelect').value,
+        format: document.getElementById('formatSelect').value,
+        subtitles: document.getElementById('subtitlesToggle').checked,
+      })
+    });
+
+    if (res.status === 429) {
+      throw new Error('Juda ko\'p so\'rov yuborildi. Biroz kuting.');
+    }
+
+    const data = await res.json();
+    if (data.detail) throw new Error(data.detail);
+    
+    currentTaskId = data.task_id;
+    document.getElementById('progressStatus').textContent = 
+      `${platformIcons[data.platform] || '🌐'} ${data.platform?.toUpperCase() || 'Media'} yuklanmoqda...`;
+    
+    startPolling();
+
+  } catch (e) {
+    setLoading(false);
+    showError(e.message, []);
+  }
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(checkStatus, 1000);
+}
+
+async function checkStatus() {
+  if (!currentTaskId) return;
+
+  try {
+    const res = await fetch(`/api/status/${currentTaskId}`);
+    const task = await res.json();
+
+    updateProgress(task);
+
+    if (task.status === 'completed') {
+      stopPolling();
+      setLoading(false);
+      hideProgress();
+      showResult(task);
+    } else if (task.status === 'failed') {
+      stopPolling();
+      setLoading(false);
+      hideProgress();
+      showError(task.error, task.tried_engines || []);
+    }
+  } catch (e) {
+    // Network error during polling - keep trying
+  }
+}
+
+function stopPolling() {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+}
+
+function updateProgress(task) {
+  const pct = task.progress || 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressMsg').textContent = task.message || '';
+
+  // Update engine trail
+  const trail = document.getElementById('engineTrail');
+  if (task.tried_engines && task.tried_engines.length > 0) {
+    trail.innerHTML = task.tried_engines.map(e => {
+      const cls = e.status === 'success' ? 'success' : e.status === 'failed' ? 'failed' : 'trying';
+      const icon = e.status === 'success' ? '✓' : e.status === 'failed' ? '✗' : '↻';
+      return `<span class="engine-badge ${cls}">${icon} ${e.engine}</span>`;
+    }).join('');
+  } else if (task.status === 'downloading') {
+    trail.innerHTML = '<span class="engine-badge trying">↻ yt-dlp sinab ko\'rilmoqda...</span>';
+  }
+}
+
+// ── Show/Hide Panels ──────────────────────────────────────────────────────────
+function showProgress() {
+  document.getElementById('progress-panel').style.display = 'block';
+  document.getElementById('progressFill').style.width = '5%';
+}
+
+function hideProgress() {
+  document.getElementById('progress-panel').style.display = 'none';
+}
+
+function showResult(task) {
+  const panel = document.getElementById('result-panel');
+  panel.style.display = 'block';
+
+  document.getElementById('resultTitle').textContent = task.metadata?.title || 'Muvaffaqiyatli yuklandi!';
+  document.getElementById('resultSub').textContent = 
+    `${task.engine_used || ''} orqali yuklandi`;
+
+  const meta = document.getElementById('resultMeta');
+  meta.innerHTML = '';
+  if (task.filename) meta.innerHTML += `<span class="meta-chip">📄 ${task.filename}</span>`;
+  if (task.filesize) meta.innerHTML += `<span class="meta-chip">💾 ${formatBytes(task.filesize)}</span>`;
+  if (task.platform) meta.innerHTML += `<span class="meta-chip">${platformIcons[task.platform]||'🌐'} ${task.platform}</span>`;
+  if (task.media_type) meta.innerHTML += `<span class="meta-chip">${mediaTypeLabels[task.media_type]||task.media_type}</span>`;
+
+  // Tried engines
+  if (task.tried_engines && task.tried_engines.length > 1) {
+    const trailDiv = document.createElement('div');
+    trailDiv.className = 'engine-trail';
+    trailDiv.style.marginBottom = '12px';
+    trailDiv.innerHTML = task.tried_engines.map(e => {
+      const cls = e.status === 'success' ? 'success' : 'failed';
+      const icon = e.status === 'success' ? '✓' : '✗';
+      return `<span class="engine-badge ${cls}">${icon} ${e.engine}</span>`;
+    }).join('');
+    meta.after(trailDiv);
+  }
+
+  const link = document.getElementById('downloadLink');
+  link.href = task.download_url;
+  link.download = task.filename || 'media';
+}
+
+function showError(msg, engines) {
+  const panel = document.getElementById('error-panel');
+  panel.style.display = 'block';
+  document.getElementById('errorMsg').textContent = msg || 'Noma\'lum xato yuz berdi';
+
+  const failedDiv = document.getElementById('failedEngines');
+  if (engines && engines.length > 0) {
+    failedDiv.innerHTML = engines.map(e => {
+      const cls = e.status === 'success' ? 'success' : 'failed';
+      const icon = e.status === 'success' ? '✓' : '✗';
+      const errShort = e.error ? ` — ${e.error.substring(0, 50)}` : '';
+      return `<span class="engine-badge ${cls}" title="${e.error||''}">${icon} ${e.engine}${errShort}</span>`;
+    }).join('');
+    document.getElementById('enginesTried').style.display = 'block';
+  } else {
+    document.getElementById('enginesTried').style.display = 'none';
+  }
+}
+
+function hideAll() {
+  document.getElementById('progress-panel').style.display = 'none';
+  document.getElementById('result-panel').style.display = 'none';
+  document.getElementById('error-panel').style.display = 'none';
+}
+
+function setLoading(loading) {
+  const btn = document.getElementById('downloadBtn');
+  const spinner = document.getElementById('btnSpinner');
+  const txt = document.getElementById('btnText');
+  
+  btn.disabled = loading;
+  spinner.style.display = loading ? 'inline-block' : 'none';
+  txt.textContent = loading ? 'YUKLANMOQDA...' : '⬇ YUKLAB OLISH';
+}
+
+function resetAll() {
+  stopPolling();
+  currentTaskId = null;
+  hideAll();
+  setLoading(false);
+  document.getElementById('urlInput').value = '';
+  document.getElementById('preview-panel').style.display = 'none';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressPct').textContent = '0%';
+  document.getElementById('engineTrail').innerHTML = '';
+}
+
+// ── Enter key ─────────────────────────────────────────────────────────────────
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startDownload();
+});
+
+// ── Auto-analyze on paste ─────────────────────────────────────────────────────
+document.getElementById('urlInput').addEventListener('paste', () => {
+  setTimeout(() => {
+    const url = document.getElementById('urlInput').value.trim();
+    if (url.startsWith('http')) analyzeUrl();
+  }, 100);
+});
+
+// ── Quality sync with format ──────────────────────────────────────────────────
+document.getElementById('qualitySelect').addEventListener('change', e => {
+  if (e.target.value === 'audio_only') {
+    document.getElementById('formatSelect').value = 'mp3';
+  }
+});
+
+document.getElementById('formatSelect').addEventListener('change', e => {
+  if (e.target.value === 'mp3') {
+    document.getElementById('qualitySelect').value = 'audio_only';
+  }
+});
+</script>
+</body>
+</html>
