@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base href="/downloader/">
 <title>MediaLoader Pro — Universal Yuklovchi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
@@ -835,8 +836,7 @@
   </div>
 
   <footer>
-    MediaLoader Pro — yt-dlp + gallery-dl + Direct HTTP &nbsp;|&nbsp; FastAPI Backend<br>
-    <span style="color:var(--accent)">API Docs:</span> <a href="/api/docs" style="color:var(--accent2)">/api/docs</a> &nbsp;·&nbsp; Health: <a href="/api/health" style="color:var(--accent2)">/api/health</a>
+    MediaLoader Pro — yt-dlp + gallery-dl + Direct HTTP &nbsp;|&nbsp; FastAPI Backend
   </footer>
 </div>
 
@@ -887,7 +887,7 @@ async function analyzeUrl() {
   hideAll();
 
   try {
-    const res = await fetch('/api/analyze', {
+    const res = await fetch('api/analyze', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ url, quality: 'best', format: 'auto' })
@@ -979,7 +979,7 @@ async function startDownload() {
   showProgress();
 
   try {
-    const res = await fetch('/api/download', {
+    const res = await fetch('api/download', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -1019,7 +1019,7 @@ async function checkStatus() {
   if (!currentTaskId) return;
 
   try {
-    const res = await fetch(`/api/status/${currentTaskId}`);
+    const res = await fetch(`api/status/${currentTaskId}`);
     const task = await res.json();
 
     updateProgress(task);

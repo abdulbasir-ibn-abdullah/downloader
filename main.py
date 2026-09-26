@@ -13,6 +13,7 @@ import asyncio
 import hashlib
 import logging
 import mimetypes
+import shutil
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timedelta
@@ -38,6 +39,15 @@ TEMP_DIR = BASE_DIR / "temp"
 LOG_DIR = BASE_DIR / "logs"
 MAX_FILE_AGE_HOURS = 2
 MAX_FILE_SIZE_MB = 2000
+
+# ffmpeg'ni tizim PATH'idan qidiramiz, topilmasa odatiy Linux joylardan tekshiramiz.
+# Bu systemd xizmatining PATH o'zgaruvchisi cheklangan bo'lsa ham ishlaydi.
+FFMPEG_PATH = shutil.which("ffmpeg")
+if not FFMPEG_PATH:
+    for candidate in ("/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"):
+        if Path(candidate).exists():
+            FFMPEG_PATH = candidate
+            break
 
 # Papkalarni yaratish
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -236,6 +246,9 @@ async def download_with_ytdlp(url: str, task_id: str, quality: str, fmt: str,
         "geo_bypass": True,
         "age_limit": None,
     }
+
+    if FFMPEG_PATH:
+        ydl_opts["ffmpeg_location"] = FFMPEG_PATH
     
     # Format-specific options
     if fmt == "mp3" or quality == "audio_only":
@@ -360,7 +373,18 @@ async def download_direct(url: str, task_id: str) -> dict:
         async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=300)) as resp:
             if resp.status != 200:
                 raise Exception(f"HTTP {resp.status}: Yuklab bo'lmadi")
-            
+
+            # Bu yerga faqat to'g'ridan-to'g'ri media havolalari tushishi kerak.
+            # Instagram/TikTok/... kabi saytlar login yoki bloklash sahifasini
+            # HTML sifatida qaytarishi mumkin — buni "muvaffaqiyat" deb hisoblamaymiz.
+            ctype_header = resp.headers.get("Content-Type", "")
+            ctype_base = ctype_header.split(";")[0].strip().lower()
+            if ctype_base in ("text/html", "application/xhtml+xml", "text/plain") or not ctype_base:
+                raise Exception(
+                    f"Bu havoladan to'g'ridan-to'g'ri media olib bo'lmadi "
+                    f"(server sahifa qaytardi: {ctype_base or 'nomaʼlum'})"
+                )
+
             # Detect filename
             content_disp = resp.headers.get("Content-Disposition", "")
             if "filename=" in content_disp:
@@ -445,7 +469,7 @@ async def smart_download(task_id: str, url: str, quality: str, fmt: str,
                 "message": "✅ Muvaffaqiyatli yuklandi!",
                 "filename": result["filename"],
                 "filesize": result["filesize"],
-                "download_url": f"/download/{task_id}/{result['filename']}",
+                "download_url": f"download/{task_id}/{result['filename']}",
                 "metadata": result.get("metadata", {}),
                 "engine_used": engine_name,
                 "tried_engines": tried_engines,
@@ -483,6 +507,10 @@ async def smart_download(task_id: str, url: str, quality: str, fmt: str,
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     asyncio.create_task(cleanup_old_files())
+    if FFMPEG_PATH:
+        logger.info(f"✅ ffmpeg topildi: {FFMPEG_PATH}")
+    else:
+        logger.warning("⚠️ ffmpeg topilmadi! Video+audio birlashtirish ishlamaydi.")
     logger.info("🚀 Universal Media Downloader ishga tushdi!")
     yield
 
@@ -491,8 +519,9 @@ app = FastAPI(
     title="Universal Media Downloader",
     description="YouTube, Instagram, TikTok, Twitter va 1000+ saytdan media yuklovchi",
     version="2.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
     root_path="/downloader",
     lifespan=lifespan,
 )
@@ -785,11 +814,6 @@ async def clean_storage():
         "cleaned_files": cleaned_files,
         "freed_space": f"{cleaned_size / (1024**2):.1f} MB"
     }
-
-@app.on_event("startup")
-async def startup():
-    asyncio.create_task(cleanup_old_files())
-    logger.info("🚀 Universal Media Downloader ishga tushdi!")
 
 if __name__ == "__main__":
     import uvicorn
