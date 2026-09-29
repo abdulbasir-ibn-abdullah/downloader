@@ -734,6 +734,20 @@
   :focus-visible { outline: 3px solid var(--accent3); outline-offset: 2px; }
   @media (max-width: 600px) { .btn-paste { padding: 12px; } .url-wrap { gap: 10px; } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+  /* ══ Mobile/touch fixes ══ */
+  .theme-toggle { position: absolute; }
+  .btn-paste { align-self: stretch; }
+  @media (max-width: 600px) {
+    .url-wrap { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    .url-wrap .btn-analyze { grid-column: 1 / -1; width: 100%; }
+    .btn-paste { padding: 0 16px; }
+    .theme-toggle { width: 40px; height: 40px; top: 10px; right: 10px; font-size: 18px; }
+  }
+  @media (hover: none) {
+    .btn-paste:hover, .btn-analyze:hover, .platform-tag:hover, .stat-card:hover,
+    .btn-download:hover:not(:disabled), .theme-toggle:hover { transform: none; }
+    .btn-analyze:hover { background: rgb(var(--accent-rgb) / .1); color: var(--accent); box-shadow: none; }
+  }
 </style>
 </head>
 <body>
