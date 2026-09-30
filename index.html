@@ -1096,10 +1096,12 @@ async function startDownload() {
     if (data.detail) throw new Error(data.detail);
     
     currentTaskId = data.task_id;
+    window.__cachedHit = !!data.cached;
     document.getElementById('progressStatus').textContent = 
       `${platformIcons[data.platform] || '🌐'} ${data.platform?.toUpperCase() || 'Media'} yuklanmoqda...`;
     
     startPolling();
+    if (data.cached || data.shared) checkStatus();
 
   } catch (e) {
     setLoading(false);
@@ -1180,7 +1182,7 @@ function showResult(task) {
 
   document.getElementById('resultTitle').textContent = task.metadata?.title || 'Muvaffaqiyatli yuklandi!';
   document.getElementById('resultSub').textContent = 
-    `${task.engine_used || ''} orqali yuklandi`;
+    window.__cachedHit ? '⚡ Tayyor fayl keshdan olindi, qayta yuklash kerak bo\'lmadi' : `${task.engine_used || ''} orqali yuklandi`;
 
   const meta = document.getElementById('resultMeta');
   meta.innerHTML = '';

@@ -17,7 +17,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
 import aiofiles
 import aiohttp
@@ -148,6 +148,154 @@ def check_rate_limit(ip: str) -> bool:
         return False
     rate_limit_store[ip].append(now)
     return True
+
+# ─── URL Cache (downloads/cache_index.json) ──────────────────────────────────
+# Bir xil URL + sifat + format qayta kiritilsa, fayl qayta yuklanmaydi:
+# tayyor fayl (yoki hozir yuklanayotgan vazifa) darhol qaytariladi.
+CACHE_FILE = DOWNLOAD_DIR / "cache_index.json"
+CACHE_TTL_HOURS = 8            # cron downloads/ ni sutkada 3 marta (8 soat) tozalaydi
+ANALYZE_CACHE_MAX = 500
+cache_index: dict = {"downloads": {}, "analyze": {}}
+inflight: dict[str, str] = {}  # cache_key -> task_id (hozir yuklanayotganlar)
+_TRACKING_PARAMS = {"fbclid", "gclid", "igshid", "si", "feature"}
+
+def normalize_url(url: str) -> str:
+    """Bir xil havolaning turli yozilishlarini bitta shaklga keltiradi."""
+    p = urlparse(url.strip())
+    q = sorted((k, v) for k, v in parse_qsl(p.query, keep_blank_values=True)
+               if not k.lower().startswith("utm_") and k.lower() not in _TRACKING_PARAMS)
+    path = p.path.rstrip("/") or "/"
+    return urlunparse((p.scheme.lower(), p.netloc.lower(), path, "", urlencode(q), ""))
+
+def _hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:32]
+
+def download_key(url: str, quality: str, fmt: str, subtitles: bool) -> str:
+    return _hash(f"{normalize_url(url)}|{quality}|{fmt}|{int(bool(subtitles))}")
+
+def analyze_key(url: str) -> str:
+    return _hash(normalize_url(url))
+
+def cache_save():
+    try:
+        tmp = CACHE_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(cache_index, ensure_ascii=False, default=str), encoding="utf-8")
+        os.replace(tmp, CACHE_FILE)
+    except Exception as e:
+        logger.warning(f"Cache saqlanmadi: {e}")
+
+def _expired(entry: dict) -> bool:
+    return time.time() - entry.get("cached_at", 0) > CACHE_TTL_HOURS * 3600
+
+def _files_ok(entry: dict) -> bool:
+    try:
+        d = DOWNLOAD_DIR / entry["task_id"]
+        t = entry.get("task", {})
+        if t.get("multiple_files"):
+            return d.is_dir() and any(d.iterdir())
+        f = d / t.get("filename", "")
+        return f.is_file() and f.stat().st_size > 0
+    except Exception:
+        return False
+
+def cache_load():
+    """Server ishga tushganda indeksni o'qiydi, yo'q bo'lgan fayllarni tozalaydi."""
+    global cache_index
+    try:
+        if CACHE_FILE.exists():
+            data = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+            cache_index = {"downloads": data.get("downloads", {}), "analyze": data.get("analyze", {})}
+    except Exception as e:
+        logger.warning(f"Cache indeksi o'qilmadi, yangisi yaratiladi: {e}")
+        cache_index = {"downloads": {}, "analyze": {}}
+    for key, e in list(cache_index["downloads"].items()):
+        if _expired(e) or not _files_ok(e):
+            cache_index["downloads"].pop(key, None)
+        else:
+            tasks.setdefault(e["task_id"], dict(e["task"]))
+    for key, e in list(cache_index["analyze"].items()):
+        if _expired(e):
+            cache_index["analyze"].pop(key, None)
+    cache_save()
+    logger.info(f"Cache: {len(cache_index['downloads'])} ta tayyor fayl, {len(cache_index['analyze'])} ta tahlil")
+
+def cache_lookup(key: str):
+    """(task_id, 'cache'|'inflight') yoki None."""
+    e = cache_index["downloads"].get(key)
+    if e:
+        if _expired(e) or not _files_ok(e):
+            cache_index["downloads"].pop(key, None)
+            cache_save()
+        else:
+            tasks.setdefault(e["task_id"], dict(e["task"]))
+            return e["task_id"], "cache"
+    tid = inflight.get(key)
+    t = tasks.get(tid) if tid else None
+    if t and t.get("status") in ("queued", "downloading"):
+        return tid, "inflight"
+    inflight.pop(key, None)
+    return None
+
+def cache_store(key, task_id: str):
+    try:
+        t = tasks.get(task_id)
+        if not key or not t or t.get("status") != "completed":
+            return
+        keep = ("task_id", "status", "progress", "message", "url", "platform", "media_type",
+                "quality", "format", "filename", "filesize", "download_url", "error", "metadata",
+                "tried_engines", "engine_used", "multiple_files", "created_at", "completed_at")
+        cache_index["downloads"][key] = {
+            "task_id": task_id,
+            "cached_at": time.time(),
+            "task": {k: t[k] for k in keep if k in t},
+        }
+        cache_save()
+    except Exception as e:
+        logger.warning(f"Cache'ga yozilmadi: {e}")
+
+def cache_drop_task(task_id: str):
+    for key, e in list(cache_index["downloads"].items()):
+        if e.get("task_id") == task_id:
+            cache_index["downloads"].pop(key, None)
+    for key, tid in list(inflight.items()):
+        if tid == task_id:
+            inflight.pop(key, None)
+    cache_save()
+
+def cache_clear():
+    cache_index["downloads"].clear()
+    cache_index["analyze"].clear()
+    inflight.clear()
+    cache_save()
+
+def cache_protected_ids() -> set:
+    """Muddati o'tmagan va fayli bor keshdagi task_id lar (ularni tozalamaymiz)."""
+    ids = set()
+    for key, e in list(cache_index["downloads"].items()):
+        if _expired(e) or not _files_ok(e):
+            cache_index["downloads"].pop(key, None)
+        else:
+            ids.add(e["task_id"])
+    for key, e in list(cache_index["analyze"].items()):
+        if _expired(e):
+            cache_index["analyze"].pop(key, None)
+    cache_save()
+    return ids
+
+def analyze_lookup(key: str):
+    e = cache_index["analyze"].get(key)
+    if e and not _expired(e):
+        return e["data"]
+    if e:
+        cache_index["analyze"].pop(key, None)
+    return None
+
+def analyze_store(key: str, data: dict):
+    cache_index["analyze"][key] = {"cached_at": time.time(), "data": data}
+    if len(cache_index["analyze"]) > ANALYZE_CACHE_MAX:
+        oldest = min(cache_index["analyze"], key=lambda k: cache_index["analyze"][k]["cached_at"])
+        cache_index["analyze"].pop(oldest, None)
+    cache_save()
 
 # ─── Platform Detection ───────────────────────────────────────────────────────
 def detect_platform(url: str) -> str:
@@ -478,6 +626,7 @@ async def smart_download(task_id: str, url: str, quality: str, fmt: str,
             })
             
             logger.info(f"[{task_id}] Success with {engine_name}: {result['filename']}")
+            cache_store(tasks[task_id].get("cache_key"), task_id)
             return
             
         except Exception as e:
@@ -506,6 +655,7 @@ async def smart_download(task_id: str, url: str, quality: str, fmt: str,
 # ─── Lifespan Handler ─────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    cache_load()
     asyncio.create_task(cleanup_old_files())
     if FFMPEG_PATH:
         logger.info(f"✅ ffmpeg topildi: {FFMPEG_PATH}")
@@ -547,6 +697,11 @@ async def root():
 async def analyze_url(request: Request, body: DownloadRequest):
     """Analyze URL and return available formats/qualities before downloading"""
     client_ip = request.client.host
+    akey = analyze_key(body.url)
+    cached_a = analyze_lookup(akey)
+    if cached_a:
+        logger.info(f"Analyze cache hit: {body.url[:60]}")
+        return {**cached_a, "cached": True}
     
     if not check_rate_limit(client_ip):
         raise HTTPException(429, "Juda ko'p so'rov. Iltimos kuting.")
@@ -596,7 +751,7 @@ async def analyze_url(request: Request, body: DownloadRequest):
         # Always add audio-only option
         formats.append({"quality": "audio_only", "ext": "mp3", "filesize": None})
         
-        return {
+        result = {
             "platform": platform,
             "media_type": media_type,
             "title": info.get("title", ""),
@@ -607,6 +762,8 @@ async def analyze_url(request: Request, body: DownloadRequest):
             "formats": formats,
             "is_playlist": info.get("_type") == "playlist",
         }
+        analyze_store(akey, result)
+        return result
         
     except asyncio.TimeoutError:
         return {
@@ -640,6 +797,15 @@ async def analyze_url(request: Request, body: DownloadRequest):
 async def start_download(request: Request, body: DownloadRequest, background_tasks: BackgroundTasks):
     """Start a download task"""
     client_ip = request.client.host
+    platform = detect_platform(body.url)
+    media_type = detect_media_type(body.url, platform)
+    dkey = download_key(body.url, body.quality, body.format, body.subtitles)
+    hit = cache_lookup(dkey)
+    if hit:
+        tid, kind = hit
+        logger.info(f"[{tid}] {kind} hit: {body.url[:60]}")
+        return {"task_id": tid, "platform": platform, "media_type": media_type,
+                "cached": kind == "cache", "shared": kind == "inflight"}
     
     if not check_rate_limit(client_ip):
         raise HTTPException(429, "Juda ko'p so'rov. 1 daqiqa kuting.")
@@ -666,7 +832,9 @@ async def start_download(request: Request, body: DownloadRequest, background_tas
         "tried_engines": [],
         "created_at": datetime.now().isoformat(),
         "ip": client_ip,
+        "cache_key": dkey,
     }
+    inflight[dkey] = task_id
     
     background_tasks.add_task(
         smart_download,
@@ -685,6 +853,7 @@ async def get_status(task_id: str):
     
     task = tasks[task_id].copy()
     task.pop("ip", None)  # Don't expose IP
+    task.pop("cache_key", None)
     return task
 
 @app.get("/download/{task_id}/{filename}")
@@ -746,6 +915,7 @@ async def delete_task(task_id: str):
         shutil.rmtree(task_dir, ignore_errors=True)
     
     del tasks[task_id]
+    cache_drop_task(task_id)
     return {"message": "O'chirildi"}
 
 @app.get("/api/supported-sites")
@@ -779,10 +949,11 @@ async def cleanup_old_files():
         await asyncio.sleep(3600)  # Every hour
         cutoff = datetime.now() - timedelta(hours=MAX_FILE_AGE_HOURS)
         cleaned = 0
+        protected = cache_protected_ids()
         
         for task_id, task in list(tasks.items()):
             created = datetime.fromisoformat(task.get("created_at", datetime.now().isoformat()))
-            if created < cutoff and task["status"] in ["completed", "failed"]:
+            if created < cutoff and task["status"] in ["completed", "failed"] and task_id not in protected:
                 task_dir = DOWNLOAD_DIR / task_id
                 if task_dir.exists():
                     import shutil
@@ -808,6 +979,7 @@ async def clean_storage():
             shutil.rmtree(task_dir, ignore_errors=True)
 
     tasks.clear()
+    cache_clear()
 
     return {
         "message": "✅ Yuklanmalar papkasi tozalandi",
