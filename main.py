@@ -888,7 +888,6 @@ async def download_file(task_id: str, filename: str):
         media_type="application/octet-stream",
     )
 
-@app.get("/api/tasks")
 async def list_tasks(request: Request):
     """List recent tasks (for admin/debug)"""
     result = []
@@ -920,6 +919,7 @@ async def delete_task(task_id: str):
 # Suspend: DELETE /api/task/{id} route ro'yxatdan o'tkazilmaydi (tashqaridan 404/405).
 # Qayta yoqish: muhitda ENABLE_TASK_DELETE=1 qilib servisni qayta ishga tushiring.
 ENABLE_TASK_DELETE = os.getenv("ENABLE_TASK_DELETE", "0") == "1"
+ENABLE_ADMIN_ENDPOINTS = os.getenv("ENABLE_ADMIN_ENDPOINTS", "0") == "1"
 if ENABLE_TASK_DELETE:
     app.add_api_route("/api/task/{task_id}", delete_task, methods=["DELETE"])
     logger.warning("⚠️ DELETE /api/task/{id} yoqilgan (ENABLE_TASK_DELETE=1)")
@@ -940,6 +940,8 @@ async def health():
     """Health check"""
     import shutil
     disk = shutil.disk_usage(str(DOWNLOAD_DIR))
+    if not ENABLE_ADMIN_ENDPOINTS:
+        return {"status": "ok"}   # tashqariga ichki ma'lumot bermaymiz
     return {
         "status": "ok",
         "active_tasks": len([t for t in tasks.values() if t["status"] in ["queued", "downloading"]]),
@@ -970,7 +972,6 @@ async def cleanup_old_files():
         if cleaned:
             logger.info(f"Cleanup: {cleaned} eski vazifa va fayl o'chirildi")
 
-@app.post("/api/clean-storage")
 async def clean_storage():
     import shutil
     cleaned_files = 0
@@ -992,6 +993,13 @@ async def clean_storage():
         "cleaned_files": cleaned_files,
         "freed_space": f"{cleaned_size / (1024**2):.1f} MB"
     }
+
+# Suspend: /api/tasks va /api/clean-storage route sifatida ro'yxatdan o'tkazilmaydi.
+# Qayta yoqish: ENABLE_ADMIN_ENDPOINTS=1 (health ham to'liq ma'lumot beradi).
+if ENABLE_ADMIN_ENDPOINTS:
+    app.add_api_route("/api/tasks", list_tasks, methods=["GET"])
+    app.add_api_route("/api/clean-storage", clean_storage, methods=["POST"])
+    logger.warning("⚠️ Admin endpointlar yoqilgan (ENABLE_ADMIN_ENDPOINTS=1)")
 
 if __name__ == "__main__":
     import uvicorn
