@@ -902,9 +902,8 @@ async def list_tasks(request: Request):
         })
     return {"tasks": result, "total": len(tasks)}
 
-@app.delete("/api/task/{task_id}")
 async def delete_task(task_id: str):
-    """Delete a task and its files"""
+    """Delete a task and its files (SUSPENDED: tashqaridan yopiq, ENABLE_TASK_DELETE=1 bilan qayta yoqiladi)"""
     if task_id not in tasks:
         raise HTTPException(404, "Topilmadi")
     
@@ -917,6 +916,13 @@ async def delete_task(task_id: str):
     del tasks[task_id]
     cache_drop_task(task_id)
     return {"message": "O'chirildi"}
+
+# Suspend: DELETE /api/task/{id} route ro'yxatdan o'tkazilmaydi (tashqaridan 404/405).
+# Qayta yoqish: muhitda ENABLE_TASK_DELETE=1 qilib servisni qayta ishga tushiring.
+ENABLE_TASK_DELETE = os.getenv("ENABLE_TASK_DELETE", "0") == "1"
+if ENABLE_TASK_DELETE:
+    app.add_api_route("/api/task/{task_id}", delete_task, methods=["DELETE"])
+    logger.warning("⚠️ DELETE /api/task/{id} yoqilgan (ENABLE_TASK_DELETE=1)")
 
 @app.get("/api/supported-sites")
 async def supported_sites():
